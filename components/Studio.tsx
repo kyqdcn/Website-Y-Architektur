@@ -30,7 +30,7 @@ const Studio: React.FC<StudioProps> = ({ portraitSrc, onUpdatePortrait, isAdmin 
            >
              {/* Inhaber Portrait */}
              <img 
-               src={portraitSrc} 
+               src=/images/portrait.jpg 
                alt="Kai Yang - Inhaber" 
                className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700"
                referrerPolicy="no-referrer"
