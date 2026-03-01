@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1250" width="100%" height="100%" style="background-color: #1a1a17; font-family: 'Segoe UI', Arial, sans-serif;">
+  <rect width="1000" height="1250" fill="#1a1a17" />
+  
+  <g id="scene" transform="translate(500, 625)"></g>
+
+  <script type="text/javascript">
+    <![CDATA[
+      const scene = document.getElementById('scene');
+      
+      // 1. 初始化 3D 节点数据 (x, y, z)
+      const nodes = [];
+      const numRandomNodes = 30;
+      
+      // 前 7 个节点是我们的核心锚点节点
+      nodes.push({ x: 0, y: 0, z: 0, r: 4 }); // 0: Center (NETZWERK)
+      nodes.push({ x: -200, y: -250, z: 100, r: 3 }); // 1: Investor
+      nodes.push({ x: 50, y: -300, z: -150, r: 3 }); // 2: Forschungsinstitute
+      nodes.push({ x: 250, y: -100, z: 50, r: 3 }); // 3: Bauproduktenhersteller
+      nodes.push({ x: 350, y: 50, z: -50, r: 3 }); // 4: Fachplaner
+      nodes.push({ x: 200, y: 250, z: 150, r: 3 }); // 5: Fachunternehmer
+      nodes.push({ x: -250, y: 150, z: -100, r: 3 }); // 6: Lieferkette
+
+      // 随机生成其他背景节点
+      for (let i = 0; i < numRandomNodes; i++) {
+        nodes.push({
+          x: (Math.random() - 0.5) * 800,
+          y: (Math.random() - 0.5) * 800,
+          z: (Math.random() - 0.5) * 800,
+          r: Math.random() * 2 + 1
+        });
+      }
+
+      // 2. 初始化连接线
+      const links = [];
+      // 将核心节点连接到中心
+      for(let i = 1; i <= 6; i++) {
+        links.push({ source: 0, target: i });
+        // 核心节点之间随机互联
+        if (i < 6) links.push({ source: i, target: i + 1 });
+      }
+      links.push({ source: 6, target: 1 }); // 闭环
+
+      // 将随机节点连入网络
+      for (let i = 7; i < nodes.length; i++) {
+        // 每个随机节点连接 2-3 个其他节点
+        let connections = Math.floor(Math.random() * 2) + 2;
+        for (let j = 0; j < connections; j++) {
+          let targetId = Math.floor(Math.random() * (i - 1));
+          links.push({ source: i, target: targetId });
+        }
+      }
+
+      // 3. 定义文本标签
+      const labels = [
+        { nodeId: 0, text: "NETZWERK", fontSize: 48, fontWeight: "bold", offsetX: 0, offsetY: 0 },
+        { nodeId: 1, text: "Investor", fontSize: 20, fontWeight: "normal", offsetX: -120, offsetY: -30 },
+        { nodeId: 2, text: "Forschungsinstitute", fontSize: 20, fontWeight: "normal", offsetX: 40, offsetY: -40 },
+        { nodeId: 3, text: "Bauproduktenhersteller", fontSize: 20, fontWeight: "normal", offsetX: 130, offsetY: -20 },
+        { nodeId: 4, text: "Fachplaner", fontSize: 20, fontWeight: "normal", offsetX: 120, offsetY: 0 },
+        { nodeId: 5, text: "Fachunternehmer", fontSize: 20, fontWeight: "normal", offsetX: 120, offsetY: 40 },
+        { nodeId: 6, text: "Lieferkette", fontSize: 20, fontWeight: "normal", offsetX: -120, offsetY: 30 }
+      ];
+
+      // 4. 创建 DOM 元素
+      const linkElements = links.map(() => {
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("stroke", "#ffffff");
+        scene.appendChild(line);
+        return line;
+      });
+
+      const nodeElements = nodes.map(() => {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("fill", "#ffffff");
+        scene.appendChild(circle);
+        return circle;
+      });
+
+      const labelElements = labels.map(labelInfo => {
+        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        
+        // 创建引线 (NETZWERK 不需要引线)
+        let line = null;
+        if (labelInfo.nodeId !== 0) {
+          line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+          line.setAttribute("stroke", "rgba(255,255,255,0.7)");
+          line.setAttribute("stroke-width", "1");
+          line.setAttribute("fill", "none");
+          g.appendChild(line);
+        }
+
+        // 创建下划线和文本
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.textContent = labelInfo.text;
+        text.setAttribute("fill", "#ffffff");
+        text.setAttribute("font-size", labelInfo.fontSize);
+        text.setAttribute("font-weight", labelInfo.fontWeight);
+        // 居中对齐
+        if(labelInfo.nodeId === 0) text.setAttribute("text-anchor", "middle");
+        else if (labelInfo.offsetX < 0) text.setAttribute("text-anchor", "end");
+        else text.setAttribute("text-anchor", "start");
+        
+        // 垂直居中修正
+        text.setAttribute("dominant-baseline", "middle");
+
+        g.appendChild(text);
+        scene.appendChild(g);
+        
+        return { g, text, line, info: labelInfo };
+      });
+
+      // 5. 动画循环与 3D 投影逻辑
+      let angleX = 0;
+      let angleY = 0;
+      const focalLength = 800; // 焦距，控制透视强度
+
+      function animate() {
+        angleX += 0.001; // X轴旋转速度
+        angleY += 0.002; // Y轴旋转速度
+
+        const cosX = Math.cos(angleX);
+        const sinX = Math.sin(angleX);
+        const cosY = Math.cos(angleY);
+        const sinY = Math.sin(angleY);
+
+        // 计算所有节点的 3D 变换和 2D 投影
+        const projectedNodes = nodes.map(node => {
+          // 绕 Y 轴旋转
+          let x1 = node.x * cosY - node.z * sinY;
+          let z1 = node.z * cosY + node.x * sinY;
+          
+          // 绕 X 轴旋转
+          let y2 = node.y * cosX - z1 * sinX;
+          let z2 = z1 * cosX + node.y * sinX;
+
+          // 透视投影
+          const scale = focalLength / (focalLength + z2);
+          const screenX = x1 * scale;
+          const screenY = y2 * scale;
+          const opacity = Math.max(0.1, Math.min(1, (z2 + 600) / 800)); // 根据深度计算透明度
+
+          return { x: screenX, y: screenY, scale: scale, opacity: opacity, z: z2 };
+        });
+
+        // 更新节点位置
+        nodeElements.forEach((circle, i) => {
+          const p = projectedNodes[i];
+          circle.setAttribute("cx", p.x);
+          circle.setAttribute("cy", p.y);
+          circle.setAttribute("r", nodes[i].r * p.scale);
+          circle.setAttribute("opacity", p.opacity);
+        });
+
+        // 更新连线位置
+        linkElements.forEach((line, i) => {
+          const p1 = projectedNodes[links[i].source];
+          const p2 = projectedNodes[links[i].target];
+          line.setAttribute("x1", p1.x);
+          line.setAttribute("y1", p1.y);
+          line.setAttribute("x2", p2.x);
+          line.setAttribute("y2", p2.y);
+          // 线条透明度基于两端深度的平均值
+          const lineOpacity = (p1.opacity + p2.opacity) / 2 * 0.4;
+          line.setAttribute("stroke-width", Math.max(0.2, 1.5 * (p1.scale + p2.scale)/2));
+          line.setAttribute("stroke", `rgba(255, 255, 255, ${lineOpacity})`);
+        });
+
+        // 更新文本标签位置
+        labelElements.forEach(label => {
+          const p = projectedNodes[label.info.nodeId];
+          
+          // 如果是中心字，稍微放大缩小以模拟深度
+          if (label.info.nodeId === 0) {
+            label.g.setAttribute("transform", `translate(${p.x}, ${p.y}) scale(${p.scale})`);
+          } else {
+            // 边缘标签
+            const targetX = p.x + label.info.offsetX;
+            const targetY = p.y + label.info.offsetY;
+            label.text.setAttribute("x", targetX);
+            label.text.setAttribute("y", targetY - 5); // 稍微往上移一点，留出下划线位置
+
+            // 绘制引线：从节点出发 -> 到文字起点 -> 划过文字底部
+            if (label.line) {
+              const lineLength = label.info.offsetX < 0 ? -120 : 120; // 下划线长度
+              const points = `${p.x},${p.y} ${targetX},${targetY} ${targetX + lineLength},${targetY}`;
+              label.line.setAttribute("points", points);
+            }
+            // 标签的透明度也受节点深度影响，但不完全消失
+            label.g.setAttribute("opacity", Math.max(0.4, p.opacity));
+          }
+        });
+
+        requestAnimationFrame(animate);
+      }
+
+      // 启动动画
+      animate();
+    ]]>
+  </script>
+</svg>
